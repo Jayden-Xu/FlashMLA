@@ -1,7 +1,7 @@
 
 import torch
-from ..kernel.prefill import flash_mla_prefill_kernel
-from ..kernel.decode import flash_mla_decode_stage_1_kernel, flash_mla_decode_stage_2_kernel
+from flash_mla.kernels.prefill import flash_mla_prefill_kernel
+from flash_mla.kernels.decode import flash_mla_decode_stage_1_kernel, flash_mla_decode_stage_2_kernel
 
 
 def cdiv(x, y): 

@@ -1,7 +1,7 @@
 # test FlashMLA against PyTorch reference implementation
 
 import torch
-from ..flash_mla.ops.interface import flash_mla_prefill, flash_mla_decode
+from flash_mla.ops.interface import flash_mla_prefill, flash_mla_decode
 
 
 def manual_mla_reference(q_abs, kv_latent, sm_scale, is_causal=True):
