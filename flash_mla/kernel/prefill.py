@@ -1,4 +1,5 @@
 # FlashAttention + MLA
+
 import torch
 import triton
 import triton.language as tl
@@ -90,37 +91,3 @@ def flash_mla_prefill_kernel(
     o_ptrs = o_ptr_base + offs_m[:, None] * stride_o_n + offs_d[None, :] * stride_o_d
     
     tl.store(o_ptrs, acc.to(Output_ptr.dtype.element_ty), mask=offs_m[:, None] < N_CTX)
-
-
-def cdiv(x, y): 
-    return (x + y - 1) // y
-
-
-def flash_mla_prefill(q_abs, kv_latent, sm_scale):
-    """
-    Args:
-        q_abs: [Batch, N_CTX, Num_Heads, D_LATENT] (Absorbed Q)
-        kv_latent: [Batch, N_CTX, D_LATENT] (Shared Latent KV)
-    """
-
-    B, N_CTX, H, D_LATENT = q_abs.shape
-    
-    output = torch.empty_like(q_abs)
-    
-    BLOCK_M = 128
-    BLOCK_N = 64
-    
-    grid = (cdiv(N_CTX, BLOCK_M), B, H)
-    
-    flash_mla_prefill_kernel[grid](
-        q_abs, kv_latent, output,
-        *q_abs.stride(),
-        *kv_latent.stride(), # [stride_b, stride_n, stride_d]
-        *output.stride(),
-        N_CTX=N_CTX, D_LATENT=D_LATENT,
-        BLOCK_M=BLOCK_M, BLOCK_N=BLOCK_N,
-        sm_scale=sm_scale,
-        num_warps=4, num_stages=2
-    )
-    
-    return output

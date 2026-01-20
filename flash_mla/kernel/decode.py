@@ -1,4 +1,5 @@
 # FlashDecoding + MLA
+
 import torch
 import triton
 import triton.language as tl
@@ -63,8 +64,7 @@ def flash_mla_decode_stage_1_kernel(
         kv_block = tl.load(kv_ptr, mask=mask_n[:, None], other=0.0)
 
         # Q_abs [D] @ KV.T [D, Block] -> [Block]
-        score = tl.dot(q_abs[None, :], tl.trans(kv_block)) 
-        score = tl.view(score, [BLOCK_N]) * sm_scale
+        score = tl.sum(q_abs[None, :] * kv_block, 1) * sm_scale
         score = tl.where(mask_n, score, float('-inf'))
 
         # online softmax
@@ -76,8 +76,7 @@ def flash_mla_decode_stage_1_kernel(
 
         # KV as K and V
         # [D, Block] @ [Block, 1] -> [D, 1]
-        weighted_v = tl.dot(tl.trans(kv_block), p_block[:, None])
-        weighted_v = tl.view(weighted_v, [D_LATENT])
+        weighted_v = tl.sum(kv_block * p_block[:, None], 0)
 
         acc = alpha * acc + weighted_v
         l_i = alpha * l_i + tl.sum(p_block, 0)
@@ -139,56 +138,3 @@ def flash_mla_decode_stage_2_kernel(
     out_ptr = Output_ptr + pid_b * stride_out_b + \
               pid_h * stride_out_h + offs_l * stride_out_l
     tl.store(out_ptr, output)
-
-
-def cdiv(x, y): 
-    return (x + y - 1) // y
-
-
-def flash_mla_decode(q_abs, kv_cache, sm_scale):
-    """
-    Args:
-        q_abs: [Batch, Heads, D_LATENT] # Absorbed Query
-        kv_cache: [Batch, N_CTX, D_LATENT] # Latent Cache
-    Returns:
-        output: [Batch, Heads, D_LATENT]
-    """
-
-    B, H, D_LATENT = q_abs.shape
-    _, N_CTX, _ = kv_cache.shape
-    
-    BLOCK_N = 64
-    SPLIT_N_SIZE = 2048
-    NUM_SPLITS = cdiv(N_CTX, SPLIT_N_SIZE)
-    # maximum NUM_SPLITS
-    NUM_SPLITS = min(NUM_SPLITS, 128) 
-    SPLIT_N_SIZE = cdiv(N_CTX, NUM_SPLITS)
-
-    # allocation
-    mid_o = torch.empty((B, H, NUM_SPLITS, D_LATENT), device=q_abs.device, dtype=torch.float32)
-    mid_lse = torch.empty((B, H, NUM_SPLITS), device=q_abs.device, dtype=torch.float32)
-    output = torch.empty_like(q_abs)
-
-    # stage 1
-    grid_1 = (B, H, NUM_SPLITS)
-    flash_mla_decode_stage_1_kernel[grid_1](
-        q_abs, kv_cache, mid_o, mid_lse,
-        *q_abs.stride(),
-        *kv_cache.stride(),
-        *mid_o.stride(),
-        *mid_lse.stride(),
-        N_CTX=N_CTX, D_LATENT=D_LATENT, 
-        BLOCK_N=BLOCK_N, SPLIT_N_SIZE=SPLIT_N_SIZE, sm_scale=sm_scale
-    )
-
-    # stage 2
-    grid_2 = (B, H)
-    flash_mla_decode_stage_2_kernel[grid_2](
-        mid_o, mid_lse, output,
-        *mid_o.stride(),
-        *mid_lse.stride(),
-        *output.stride(),
-        D_LATENT=D_LATENT, NUM_SPLITS=NUM_SPLITS
-    )
-    
-    return output
