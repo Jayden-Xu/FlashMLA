@@ -18,11 +18,8 @@ def flash_mla_prefill(q_abs, kv_latent, sm_scale):
     B, N_CTX, H, D_LATENT = q_abs.shape
     
     output = torch.empty_like(q_abs)
-    
-    BLOCK_M = 128
-    BLOCK_N = 64
-    
-    grid = (cdiv(N_CTX, BLOCK_M), B, H)
+
+    grid = lambda META: (cdiv(N_CTX, META['BLOCK_M']), B, H)
     
     flash_mla_prefill_kernel[grid](
         q_abs, kv_latent, output,
@@ -30,9 +27,7 @@ def flash_mla_prefill(q_abs, kv_latent, sm_scale):
         *kv_latent.stride(), # [stride_b, stride_n, stride_d]
         *output.stride(),
         N_CTX=N_CTX, D_LATENT=D_LATENT,
-        BLOCK_M=BLOCK_M, BLOCK_N=BLOCK_N,
         sm_scale=sm_scale,
-        num_warps=4, num_stages=2
     )
     
     return output
