@@ -6,12 +6,12 @@ import triton.language as tl
 
 
 autotune_configs = [
+    # small D (128)
     triton.Config({'BLOCK_M': 128, 'BLOCK_N': 64, 'num_stages': 4, 'num_warps': 4}, num_stages=4, num_warps=4),
     triton.Config({'BLOCK_M': 64, 'BLOCK_N': 64, 'num_stages': 4, 'num_warps': 4}, num_stages=4, num_warps=4),
-    triton.Config({'BLOCK_M': 128, 'BLOCK_N': 128, 'num_stages': 3, 'num_warps': 8}, num_stages=3, num_warps=8),
-    triton.Config({'BLOCK_M': 64, 'BLOCK_N': 128, 'num_stages': 3, 'num_warps': 8}, num_stages=3, num_warps=8),
-    triton.Config({'BLOCK_M': 128, 'BLOCK_N': 32, 'num_stages': 4, 'num_warps': 4}, num_stages=4, num_warps=4),
-    triton.Config({'BLOCK_M': 64, 'BLOCK_N': 32, 'num_stages': 5, 'num_warps': 2}, num_stages=5, num_warps=2),
+    # large D (512)
+    triton.Config({'BLOCK_M': 64, 'BLOCK_N': 32, 'num_stages': 2, 'num_warps': 4}, num_stages=2, num_warps=4),
+    triton.Config({'BLOCK_M': 32, 'BLOCK_N': 32, 'num_stages': 2, 'num_warps': 4}, num_stages=2, num_warps=4),
 ]
 
 
@@ -41,6 +41,10 @@ def flash_mla_prefill_kernel(
     pid_m = tl.program_id(0) # block ID
     pid_b = tl.program_id(1) # batch ID
     pid_h = tl.program_id(2) # head ID
+
+    pid_m = pid_m.to(tl.int64)
+    pid_b = pid_b.to(tl.int64)
+    pid_h = pid_h.to(tl.int64)
 
     # load Q block
     offs_m = pid_m * BLOCK_M + tl.arange(0, BLOCK_M)
