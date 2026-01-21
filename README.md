@@ -69,7 +69,7 @@ FlashMLA demonstrates robust throughput scaling with increasing batch sizes upto
 
 ### Decode Phase
 
-#### Sequence Length Scaling (Batch = 4)
+#### Context Length Scaling (Batch = 4)
 
 FlashMLA vs PyTorch MHA: In the memory-bound decoding phase, FlashMLA leverages the shared-KV architecture to minimize HBM reads. It achieves microsecond-level latency that remains stable even at 64k context, while MHA/GQA suffer from linear latency growth and eventually OOM due to massive KV transfers.
 
