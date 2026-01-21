@@ -19,6 +19,7 @@ FlashMLA/
 │   └── test_correctness.py
 ├── benchmarks/
 │   └── benchmark_prefill.py
+│   └── results/               # benchmark results & plots
 └── README.md
 ```
 
@@ -58,10 +59,10 @@ Configuration: Heads=128, Dim=512 (DeepSeek V2/V3 Standard).
 
 FlashMLA vs PyTorch MHA/GQA: While standard attention mechanisms suffer from OOM (Out Of Memory) at long contexts (16k+), FlashMLA maintains a negligible memory footprint, enabling significantly longer context windows.
 
-![](../FlashMLA/benchmarks/results/prefill_seqlen.png)
+![](./benchmarks/results/prefill_seqlen.png)
 
 #### Batch Size Scaling (Seq = 4096)
 
 FlashMLA demonstrates robust throughput scaling with increasing batch sizes upto 64.
 
-![](../FlashMLA/benchmarks/results/prefill_batch.png)
+![](./benchmarks/results/prefill_batch.png)
