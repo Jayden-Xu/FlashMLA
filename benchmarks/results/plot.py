@@ -1,56 +1,69 @@
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import numpy as np
 
 def run_experiment_plot(df, x_col, title_prefix, filename):
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
-    
-    metrics = [
-        {'col': 'Time_ms', 'title': 'Latency (Lower is Better)', 'ylabel': 'Latency (ms)', 'ax': ax1},
-        {'col': 'KV_Size_MB', 'title': 'KV Cache Size (Lower is Better)', 'ylabel': 'Size (MB)', 'ax': ax2}
-    ]
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(24, 7))
     
     desired_order = ['FlashMLA', 'PyTorch_GQA', 'PyTorch_MHA']
     colors = {'FlashMLA': '#1f77b4', 'PyTorch_GQA': '#2ca02c', 'PyTorch_MHA': '#ff7f0e'}
 
-    for m in metrics:
-        ax = m['ax']
-        pivot_df = df.pivot(index=x_col, columns='Method', values=m['col'])
-        existing_cols = [c for c in desired_order if c in pivot_df.columns]
-        pivot_df = pivot_df[existing_cols]
-        
-        color_list = [colors.get(col, '#333333') for col in pivot_df.columns]
+    ax = ax1
+    pivot_time = df.pivot(index=x_col, columns='Method', values='Time_ms')
+    existing_cols = [c for c in desired_order if c in pivot_time.columns]
+    pivot_time = pivot_time[existing_cols]
+    
+    color_list = [colors.get(col, '#333333') for col in pivot_time.columns]
+    pivot_time.plot(kind='bar', width=0.8, color=color_list, edgecolor='black', linewidth=0.5, ax=ax)
+    ax.set_yscale('log')
+    ax.set_title(f"{title_prefix}: Latency (Log Scale, Lower Is Better)", fontsize=14, pad=15)
+    ax.set_ylabel("Latency (ms)", fontsize=12)
+    ax.grid(axis='y', linestyle='--', alpha=0.4, which='both')
 
-        pivot_df.plot(kind='bar', width=0.8, color=color_list, edgecolor='black', 
-                      linewidth=0.5, ax=ax, legend=True if m['col'] == 'Time_ms' else False)
-        
-        ax.set_title(f"{title_prefix}: {m['title']}", fontsize=16, pad=15)
-        ax.set_xlabel(x_col, fontsize=12)
-        ax.set_ylabel(m['ylabel'], fontsize=12)
-        ax.grid(axis='y', linestyle='--', alpha=0.4)
-        ax.tick_params(axis='x', rotation=0)
+    ax = ax2
+    pivot_kv = df.pivot(index=x_col, columns='Method', values='KV_Size_MB')
+    valid_cols_kv = [c for c in desired_order if c in pivot_kv.columns]
+    pivot_kv = pivot_kv[valid_cols_kv]
+    color_list_kv = [colors.get(col, '#333333') for col in pivot_kv.columns]
 
-        y_bottom, y_top = ax.get_ylim()
-        for container in ax.containers:
-            label = str(container.get_label())
-            for i, rect in enumerate(container):
+    pivot_kv.plot(kind='bar', width=0.8, color=color_list_kv, edgecolor='black', linewidth=0.5, ax=ax, legend=False)
+    ax.set_yscale('log')
+    ax.set_title(f"{title_prefix}: KV Cache Size (Log Scale, Lower Is Better)", fontsize=14, pad=15)
+    ax.set_ylabel("Size (MB)", fontsize=12)
+    ax.grid(axis='y', linestyle='--', alpha=0.4, which='both')
+
+    ax = ax3
+    if 'PyTorch_MHA' in pivot_time.columns:
+        speedup_df = pivot_time.copy()
+        for col in speedup_df.columns:
+            speedup_df[col] = pivot_time['PyTorch_MHA'] / pivot_time[col]
+        
+        speedup_df.plot(kind='line', marker='o', linewidth=2, color=color_list, ax=ax)
+        ax.set_title(f"{title_prefix}: Speedup (vs MHA)", fontsize=14, pad=15)
+        ax.set_ylabel("Speedup Factor (x)", fontsize=12)
+        ax.axhline(y=1, color='red', linestyle='--', alpha=0.5)
+        ax.grid(True, linestyle='--', alpha=0.4)
+
+    for ax_item in [ax1, ax2]:
+        y_min, y_max = ax_item.get_ylim()
+        for container in ax_item.containers:
+            for rect in container:
                 height = rect.get_height()
-                x = rect.get_x() + rect.get_width() / 2
-                
-                idx_val = pivot_df.index[i]
-                val = pivot_df.loc[idx_val, label]
-                
-                if pd.isna(val) or val == 0:
-                    ax.text(x, y_bottom, 'OOM', ha='center', va='bottom', 
-                             color='red', fontsize=10, fontweight='bold')
+                if pd.isna(height) or height <= 0:
+                    ax_item.text(rect.get_x() + rect.get_width()/2, y_min * 1.05, 'OOM', 
+                                 ha='center', va='bottom', color='red', fontsize=8, fontweight='bold', rotation=30)
                 else:
-                    txt = f"{val/1000:.1f}k" if val >= 1000 else f"{val:.0f}"
-                    ax.text(x, height + (y_top * 0.01), txt, ha='center', va='bottom', fontsize=9)
+                    txt = f"{height/1000:.1f}k" if height >= 1000 else f"{height:.1f}"
+                    ax_item.text(rect.get_x() + rect.get_width()/2, height * 1.05, txt, 
+                                 ha='center', va='bottom', fontsize=6)
+
+    for ax_item in [ax1, ax2, ax3]:
+        ax_item.set_xlabel(x_col, fontsize=12)
+        ax_item.tick_params(axis='x', rotation=0)
 
     plt.tight_layout()
-    print(f"Saving {filename}...")
     plt.savefig(filename, dpi=300)
     plt.close()
 
@@ -64,19 +77,11 @@ def main():
     
     exp1 = df[df['Experiment'] == 'Var_SeqLen']
     if not exp1.empty:
-        run_experiment_plot(
-            exp1, 'Var_SeqLen', x_col='SeqLen', 
-            title_prefix='Prefill',
-            filename='exp1_combined_seqlen.png'
-        )
+        run_experiment_plot(exp1, x_col='SeqLen', title_prefix='Prefill', filename='prefill_seqlen.png')
 
     exp2 = df[df['Experiment'] == 'Var_Batch']
     if not exp2.empty:
-        run_experiment_plot(
-            exp2, 'Var_Batch', x_col='Batch', 
-            title_prefix='Prefill',
-            filename='exp2_combined_batch.png'
-        )
+        run_experiment_plot(exp2, x_col='Batch', title_prefix='Prefill', filename='prefill_batch.png')
 
 if __name__ == "__main__":
     main()

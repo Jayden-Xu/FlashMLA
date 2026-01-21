@@ -52,14 +52,16 @@ MLA redefines KV cache efficiency by decoupling the KV latent dimension from the
 Benchmarks were conducted on NVIDIA A100-SXM4-80GB.
 Configuration: Heads=128, Dim=512 (DeepSeek V2/V3 Standard).
 
-1. Sequence Length Scaling (Batch = 4)
+### Prefill
+
+#### Sequence Length Scaling (Batch = 4)
 
 FlashMLA vs PyTorch MHA/GQA: While standard attention mechanisms suffer from OOM (Out Of Memory) at long contexts (16k+), FlashMLA maintains a negligible memory footprint, enabling significantly longer context windows.
 
-![](../FlashMLA/benchmarks/results/exp1_combined_seqlen.png)
+![](../FlashMLA/benchmarks/results/prefill_seqlen.png)
 
-2. Batch Size Scaling (Seq = 4096)
+#### Batch Size Scaling (Seq = 4096)
 
-FlashMLA demonstrates robust throughput scaling with increasing batch sizes.
+FlashMLA demonstrates robust throughput scaling with increasing batch sizes upto 64.
 
-![](../FlashMLA/benchmarks/results/exp2_combined_batch.png)
+![](../FlashMLA/benchmarks/results/prefill_batch.png)
