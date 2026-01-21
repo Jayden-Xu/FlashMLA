@@ -45,7 +45,6 @@ def flash_mla_decode(q_abs, kv_cache, sm_scale):
     B, H, D_LATENT = q_abs.shape
     _, N_CTX, _ = kv_cache.shape
     
-    BLOCK_N = 64
     SPLIT_N_SIZE = 2048
     NUM_SPLITS = cdiv(N_CTX, SPLIT_N_SIZE)
     # maximum NUM_SPLITS
@@ -66,7 +65,7 @@ def flash_mla_decode(q_abs, kv_cache, sm_scale):
         *mid_o.stride(),
         *mid_lse.stride(),
         N_CTX=N_CTX, D_LATENT=D_LATENT, 
-        BLOCK_N=BLOCK_N, SPLIT_N_SIZE=SPLIT_N_SIZE, sm_scale=sm_scale
+        SPLIT_N_SIZE=SPLIT_N_SIZE, sm_scale=sm_scale
     )
 
     # stage 2

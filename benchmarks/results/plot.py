@@ -19,7 +19,7 @@ def run_experiment_plot(df, x_col, title_prefix, filename):
     pivot_time.plot(kind='bar', width=0.8, color=color_list, edgecolor='black', linewidth=0.5, ax=ax)
     ax.set_yscale('log')
     ax.set_title(f"{title_prefix}: Latency (Log Scale, Lower Is Better)", fontsize=14, pad=15)
-    ax.set_ylabel("Latency (ms)", fontsize=12)
+    ax.set_ylabel("Latency (ms)", fontsize=18)
     ax.grid(axis='y', linestyle='--', alpha=0.4, which='both')
 
     ax = ax2
@@ -31,7 +31,7 @@ def run_experiment_plot(df, x_col, title_prefix, filename):
     pivot_kv.plot(kind='bar', width=0.8, color=color_list_kv, edgecolor='black', linewidth=0.5, ax=ax, legend=False)
     ax.set_yscale('log')
     ax.set_title(f"{title_prefix}: KV Cache Size (Log Scale, Lower Is Better)", fontsize=14, pad=15)
-    ax.set_ylabel("Size (MB)", fontsize=12)
+    ax.set_ylabel("Size (MB)", fontsize=18)
     ax.grid(axis='y', linestyle='--', alpha=0.4, which='both')
 
     for ax_item in [ax1, ax2]:
@@ -48,7 +48,7 @@ def run_experiment_plot(df, x_col, title_prefix, filename):
                                  ha='center', va='bottom', fontsize=10)
 
     for ax_item in [ax1, ax2]:
-        ax_item.set_xlabel(x_col, fontsize=16)
+        ax_item.set_xlabel(x_col, fontsize=18)
         ax_item.tick_params(axis='x', rotation=0)
     
     ax1.legend(['FlashMLA (Ours)', 'PyTorch GQA', 'PyTorch MHA'], fontsize=18, loc='upper left')

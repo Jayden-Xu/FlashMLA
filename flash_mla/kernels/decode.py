@@ -5,6 +5,17 @@ import triton
 import triton.language as tl
 
 
+autotune_configs = [
+    triton.Config({'BLOCK_N': 64, 'num_warps': 4}, num_warps=4),
+    triton.Config({'BLOCK_N': 32, 'num_warps': 4}, num_warps=4),
+    triton.Config({'BLOCK_N': 16, 'num_warps': 4}, num_warps=4),
+]
+
+
+@triton.autotune(
+    configs=autotune_configs,
+    key=['D_LATENT'],
+)
 @triton.jit
 def flash_mla_decode_stage_1_kernel(
     Q_abs_ptr,     # [Batch, Heads, D_LATENT] absorbed Query
@@ -31,6 +42,10 @@ def flash_mla_decode_stage_1_kernel(
     pid_b = tl.program_id(0) # batch ID
     pid_h = tl.program_id(1) # head ID
     pid_s = tl.program_id(2) # split ID
+
+    pid_b = pid_b.to(tl.int64)
+    pid_h = pid_h.to(tl.int64)
+    pid_s = pid_s.to(tl.int64)
 
     # load absorbed query
     offs_l = tl.arange(0, D_LATENT)
