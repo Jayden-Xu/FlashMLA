@@ -3,29 +3,6 @@
 FlashMLA is an fast and memory-efficient collection of MLA (Multi-Head Latent Attention) kernels implemented in OpenAI Triton. Specifically optimized for the MLA architecture, it bridges the gap between massive context windows and hardware efficiency.
 
 ---
-```
-FlashMLA/
-├── flash_mla/
-│   ├── __init__.py
-│   ├── ops/
-│   │   ├── __init__.py
-│   │   └── interface.py
-│   └── kernels/
-│       ├── __init__.py
-│       ├── decode_kernel.py   # Decode Triton Kernel
-│       └── prefill_kernel.py  # Prefill Triton Kernel
-├── tests/
-│   ├── __init__.py
-│   └── test_correctness.py
-├── benchmarks/
-│   └── benchmark_prefill.py
-│   └── results/               # benchmark results & plots
-└── README.md
-```
-
-
-
----
 
 ## Key Features
 
@@ -33,18 +10,6 @@ FlashMLA/
 * **FlashDecoding (Split-KV)**: Accelerates the decoding phase by parallelizing over the sequence length, significantly reducing Time-To-First-Token (TTFT).
 * **Matrix Absorption**: Fuses projection matrices into the attention computation, transforming compute-heavy operations into streamlined, memory-bound tasks.
 * **Shared-KV Native**: Full support for MLA’s compressed KV latent vectors, reducing KV cache memory footprint by up to 90% compared to standard MHA.
-
----
-
-## Architecture Comparison
-
-MLA redefines KV cache efficiency by decoupling the KV latent dimension from the number of attention heads.
-
-| Architecture | KV Cache Shape | Memory Impact | Scaling Bottleneck |
-| :--- | :--- | :--- | :--- |
-| **MHA** | `[B, N, H, D]` | **Massive** | Linear with Head Count |
-| **GQA** | `[B, N, H/G, D]` | **Moderate** | Linear with KV Head Count |
-| **MLA** | `[B, N, D_latent]`| **Tiny** | Independent of Heads |
 
 ---
 
