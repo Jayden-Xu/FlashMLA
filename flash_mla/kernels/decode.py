@@ -69,6 +69,7 @@ def flash_mla_decode_stage_1_kernel(
     # loop over KV
     for start_n in range(start_n_global, end_n_global, BLOCK_N):
         offs_n = start_n + tl.arange(0, BLOCK_N)
+        offs_n = offs_n.to(tl.int64)
         mask_n = offs_n < N_CTX
 
         # load KV latent
@@ -124,6 +125,9 @@ def flash_mla_decode_stage_2_kernel(
 ):
     pid_b = tl.program_id(0)
     pid_h = tl.program_id(1)
+
+    pid_b = pid_b.to(tl.int64)
+    pid_h = pid_h.to(tl.int64)
 
     offs_s = tl.arange(0, NUM_SPLITS)
     offs_l = tl.arange(0, D_LATENT)
