@@ -1,11 +1,6 @@
 # FlashMLA: High-Performance Multi-Head Latent Attention Kernels
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-f39c12.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Triton](https://img.shields.io/badge/Implementation-OpenAI_Triton-000000.svg)](https://github.com/openai/triton)
-[![CUDA 11.8+](https://img.shields.io/badge/CUDA-11.8+-76B900.svg)](https://developer.nvidia.com/cuda-toolkit)
-
-**FlashMLA** is an fast and memory-efficient collection of MLA (Multi-Head Latent Attention) kernels implemented in OpenAI Triton. Specifically optimized for the MLA architecture used in **DeepSeek-V2** and **DeepSeek-V3**, it bridges the gap between massive context windows and hardware efficiency.
+FlashMLA is an fast and memory-efficient collection of MLA (Multi-Head Latent Attention) kernels implemented in OpenAI Triton. Specifically optimized for the MLA architecture, it bridges the gap between massive context windows and hardware efficiency.
 
 ---
 ```
@@ -23,8 +18,7 @@ FlashMLA/
 │   ├── __init__.py
 │   └── test_correctness.py
 ├── benchmarks/
-│   └── benchmark.py
-├── setup.py
+│   └── benchmark_prefill.py
 └── README.md
 ```
 
@@ -47,7 +41,25 @@ MLA redefines KV cache efficiency by decoupling the KV latent dimension from the
 
 | Architecture | KV Cache Shape | Memory Impact | Scaling Bottleneck |
 | :--- | :--- | :--- | :--- |
-| **Standard MHA** | `[B, N, H, D]` | **Massive** | Linear with Head Count |
-| **MLA (FlashMLA)** | `[B, N, D_latent]`| **Tiny** | Independent of Heads |
+| **MHA** | `[B, N, H, D]` | **Massive** | Linear with Head Count |
+| **GQA** | `[B, N, H/G, D]` | **Moderate** | Linear with KV Head Count |
+| **MLA** | `[B, N, D_latent]`| **Tiny** | Independent of Heads |
 
 ---
+
+## Performance Benchmarks
+
+Benchmarks were conducted on NVIDIA A100-SXM4-80GB.
+Configuration: Heads=128, Dim=512 (DeepSeek V2/V3 Standard).
+
+1. Sequence Length Scaling (Batch = 4)
+
+FlashMLA vs PyTorch MHA/GQA: While standard attention mechanisms suffer from OOM (Out Of Memory) at long contexts (16k+), FlashMLA maintains a negligible memory footprint, enabling significantly longer context windows.
+
+![](../FlashMLA/benchmarks/results/exp1_combined_seqlen.png)
+
+2. Batch Size Scaling (Seq = 4096)
+
+FlashMLA demonstrates robust throughput scaling with increasing batch sizes.
+
+![](../FlashMLA/benchmarks/results/exp2_combined_batch.png)
