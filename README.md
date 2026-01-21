@@ -53,7 +53,7 @@ MLA redefines KV cache efficiency by decoupling the KV latent dimension from the
 Benchmarks were conducted on NVIDIA A100-SXM4-80GB.
 Configuration: Heads=128, Dim=512 (DeepSeek V2/V3 Standard).
 
-### Prefill
+### Prefill Phase
 
 #### Sequence Length Scaling (Batch = 4)
 
@@ -66,3 +66,17 @@ FlashMLA vs PyTorch MHA/GQA: While standard attention mechanisms suffer from OOM
 FlashMLA demonstrates robust throughput scaling with increasing batch sizes upto 64.
 
 ![](./benchmarks/results/prefill_batch.png)
+
+### Decode Phase
+
+#### Sequence Length Scaling (Batch = 4)
+
+FlashMLA vs PyTorch MHA: In the memory-bound decoding phase, FlashMLA leverages the shared-KV architecture to minimize HBM reads. It achieves microsecond-level latency that remains stable even at 64k context, while MHA/GQA suffer from linear latency growth and eventually OOM due to massive KV transfers.
+
+![](./benchmarks/results/decode_context.png)
+
+#### Batch Size Scaling (Seq = 4096)
+
+Even with increasing concurrency, FlashMLA maintains a significant speedup over standard implementations due to reduced memory bandwidth pressure.
+
+![](./benchmarks/results/decode_batch.png)
