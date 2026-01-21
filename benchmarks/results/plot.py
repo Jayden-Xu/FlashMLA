@@ -51,8 +51,8 @@ def run_experiment_plot(df, x_col, title_prefix, filename):
         ax_item.set_xlabel(x_col, fontsize=16)
         ax_item.tick_params(axis='x', rotation=0)
     
-    ax1.legend(['FlashMLA (Ours)', 'PyTorch GQA', 'PyTorch MHA'], fontsize=14, loc='upper left')
-    ax2.legend(['FlashMLA (Ours)', 'PyTorch GQA', 'PyTorch MHA'], fontsize=14, loc='upper left')
+    ax1.legend(['FlashMLA (Ours)', 'PyTorch GQA', 'PyTorch MHA'], fontsize=18, loc='upper left')
+    ax2.legend(['FlashMLA (Ours)', 'PyTorch GQA', 'PyTorch MHA'], fontsize=18, loc='upper left')
 
     plt.tight_layout()
     plt.savefig(filename, dpi=300)
