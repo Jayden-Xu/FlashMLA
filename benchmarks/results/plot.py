@@ -5,7 +5,7 @@ import numpy as np
 
 def run_experiment_plot(df, x_col, title_prefix, filename):
 
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(24, 7))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 7))
     
     desired_order = ['FlashMLA', 'PyTorch_GQA', 'PyTorch_MHA']
     colors = {'FlashMLA': '#1f77b4', 'PyTorch_GQA': '#2ca02c', 'PyTorch_MHA': '#ff7f0e'}
@@ -34,18 +34,6 @@ def run_experiment_plot(df, x_col, title_prefix, filename):
     ax.set_ylabel("Size (MB)", fontsize=12)
     ax.grid(axis='y', linestyle='--', alpha=0.4, which='both')
 
-    ax = ax3
-    if 'PyTorch_MHA' in pivot_time.columns:
-        speedup_df = pivot_time.copy()
-        for col in speedup_df.columns:
-            speedup_df[col] = pivot_time['PyTorch_MHA'] / pivot_time[col]
-        
-        speedup_df.plot(kind='line', marker='o', linewidth=2, color=color_list, ax=ax)
-        ax.set_title(f"{title_prefix}: Speedup (vs MHA)", fontsize=14, pad=15)
-        ax.set_ylabel("Speedup Factor (x)", fontsize=12)
-        ax.axhline(y=1, color='red', linestyle='--', alpha=0.5)
-        ax.grid(True, linestyle='--', alpha=0.4)
-
     for ax_item in [ax1, ax2]:
         y_min, y_max = ax_item.get_ylim()
         for container in ax_item.containers:
@@ -53,15 +41,18 @@ def run_experiment_plot(df, x_col, title_prefix, filename):
                 height = rect.get_height()
                 if pd.isna(height) or height <= 0:
                     ax_item.text(rect.get_x() + rect.get_width()/2, y_min * 1.05, 'OOM', 
-                                 ha='center', va='bottom', color='red', fontsize=8, fontweight='bold', rotation=30)
+                                 ha='center', va='bottom', color='red', fontsize=9, fontweight='bold', rotation=30)
                 else:
                     txt = f"{height/1000:.1f}k" if height >= 1000 else f"{height:.1f}"
                     ax_item.text(rect.get_x() + rect.get_width()/2, height * 1.05, txt, 
-                                 ha='center', va='bottom', fontsize=6)
+                                 ha='center', va='bottom', fontsize=10)
 
-    for ax_item in [ax1, ax2, ax3]:
-        ax_item.set_xlabel(x_col, fontsize=12)
+    for ax_item in [ax1, ax2]:
+        ax_item.set_xlabel(x_col, fontsize=16)
         ax_item.tick_params(axis='x', rotation=0)
+    
+    ax1.legend(['FlashMLA (Ours)', 'PyTorch GQA', 'PyTorch MHA'], fontsize=14, loc='upper left')
+    ax2.legend(['FlashMLA (Ours)', 'PyTorch GQA', 'PyTorch MHA'], fontsize=14, loc='upper left')
 
     plt.tight_layout()
     plt.savefig(filename, dpi=300)

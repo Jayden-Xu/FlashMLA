@@ -168,7 +168,7 @@ if __name__ == "__main__":
         run_suite("Var_SeqLen", B=4, N=n, H_Q=H, D=D, csv_data=csv_data)
 
     print(f"\n[Experiment 2] Variable Batch (Seq=4096, Heads={H}, Dim={D})")
-    batches = [1, 2, 4, 8, 16, 32, 64, 128]
+    batches = [1, 2, 4, 8, 16, 32, 64]
     for b in batches:
         run_suite("Var_Batch", B=b, N=4096, H_Q=H, D=D, csv_data=csv_data)
 
