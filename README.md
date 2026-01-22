@@ -5,48 +5,40 @@ FlashMLA is an fast and memory-efficient collection of MLA (Multi-Head Latent At
 ---
 ## Performance Benchmarks
 
-Benchmarks are conducted on NVIDIA A100 (80GB). We compare FlashMLA against state-of-the-art implementations of standard attention mechanisms.
+Benchmarks are conducted on NVIDIA A100 (80GB). We compare FlashMLA against the industry-standard FlashAttention-2 (FA2) implementations for Multi-Head Attention (MHA) and Grouped-Query Attention (GQA).
 
 Key Architectural Parameters:
 - FlashMLA: $d_c = 512$ (Compressed KV Latent)
 - MHA/GQA Baselines: $d_h = 128$ (Standard Head Dimension)
-- $n_{heads} = 128$
+- Attention Heads: $n_{q\_heads} = 128$
+- GQA Config: Group Size = 8 ($n_{kv\_heads} = 16$)
 
 ### Prefill Phase
 
 #### Sequence Length Scaling (Batch = 4)
 
-FlashMLA vs PyTorch MHA/GQA: While standard attention mechanisms suffer from OOM (Out Of Memory) at long contexts (16k+), FlashMLA maintains a negligible memory footprint, enabling significantly longer context windows.
+In the prefill stage, FlashMLA focuses on maximizing KV cache capacity. While standard FA2 kernels are highly optimized for compute, FlashMLA enables processing sequences that would otherwise exceed hardware memory limits.
+
+> Note: MLA is ~1.5x slower than GQA in prefill due to the computational complexity of Matrix Absorption. However, it reduces memory footprint by 8x compared to GQA and 64x compared to MHA.
 
 ![](./benchmarks/results/prefill_seqlen.png)
 
 #### Batch Size Scaling (Seq = 4096)
 
-FlashMLA demonstrates robust throughput scaling with increasing batch sizes upto 64.
-
 ![](./benchmarks/results/prefill_batch.png)
 
 ### Decode Phase
 
+Decoding is heavily memory-bandwidth bound. FlashMLA leverages its 1/64th (vs. MHA) and 1/8th (vs. GQA) I/O requirements to maintain high efficiency in long-context scenarios.
+
 #### Context Length Scaling (Batch = 4)
 
-FlashMLA vs PyTorch MHA: In the memory-bound decoding phase, FlashMLA leverages the shared-KV architecture to minimize HBM reads. It achieves microsecond-level latency that remains stable even at 64k context, while MHA/GQA suffer from linear latency growth and eventually OOM due to massive KV transfers.
+While the highly-tuned FA2-GQA kernel currently leads in raw latency for small batches, FlashMLA significantly outperforms standard MHA. Its true value lies in long-context scalability: at 64K context, MLA uses only 256MB, whereas GQA requires 2GB, effectively allowing for 8x larger batches or 8x longer sequences on the same hardware.
 
 ![](./benchmarks/results/decode_context.png)
 
 #### Batch Size Scaling (Seq = 4096)
 
-Even with increasing concurrency, FlashMLA maintains a significant speedup over standard implementations due to reduced memory bandwidth pressure.
-
 ![](./benchmarks/results/decode_batch.png)
-
----
-
-## Key Features
-
-* **FlashAttention Prefill**: Optimized tile-based kernel for the prefill stage, handling MLA’s absorbed projections with minimal overhead.
-* **FlashDecoding (Split-KV)**: Accelerates the decoding phase by parallelizing over the sequence length, significantly reducing Time-To-First-Token (TTFT).
-* **Matrix Absorption**: Fuses projection matrices into the attention computation, transforming compute-heavy operations into streamlined, memory-bound tasks.
-* **Shared-KV Native**: Full support for MLA’s compressed KV latent vectors, reducing KV cache memory footprint by up to 90% compared to standard MHA.
 
 ---
