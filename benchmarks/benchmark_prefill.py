@@ -1,184 +1,86 @@
-
 import torch
 import torch.nn.functional as F
 import math
-import csv
-import os
 import gc
 import pandas as pd
 from flash_mla.ops.interface import flash_mla_prefill
 
+try:
+    from flash_attn import flash_attn_func
+    HAS_FLASH_ATTN = True
+except ImportError:
+    HAS_FLASH_ATTN = False
 
-def pytorch_sdpa_native(q, k, v, sm_scale):
-
-    B, N, H_Q, D = q.shape
-    H_K = k.shape[2]
-    
-    q = q.transpose(1, 2)
-    k = k.transpose(1, 2)
-    v = v.transpose(1, 2)
-    
-    if H_Q != H_K:
-        # GQA
-        n_group = H_Q // H_K
-        k = k.repeat_interleave(n_group, dim=1)
-        v = v.repeat_interleave(n_group, dim=1)
-    
-    out = F.scaled_dot_product_attention(q, k, v, scale=sm_scale, is_causal=True)
-    return out.transpose(1, 2)
-
-
-def benchmark_kernel(func, name, args, n_repeat=10):
+def benchmark_kernel(func, args, n_repeat=10):
     torch.cuda.empty_cache()
     gc.collect()
     torch.cuda.synchronize()
     torch.cuda.reset_peak_memory_stats()
-    
-    # Warmup
     try:
         for _ in range(3): func(*args)
-    except torch.cuda.OutOfMemoryError:
-        return None, None
-    except Exception as e:
-        return None, None
+    except Exception: return None, None
 
     torch.cuda.synchronize()
-    start = torch.cuda.Event(enable_timing=True)
-    end = torch.cuda.Event(enable_timing=True)
-    
+    start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
     start.record()
-    try:
-        for _ in range(n_repeat):
-            func(*args)
-    except torch.cuda.OutOfMemoryError:
-        return None, None
-    except Exception as e:
-        return None, None
+    for _ in range(n_repeat): func(*args)
     end.record()
-    
     torch.cuda.synchronize()
     avg_time = start.elapsed_time(end) / n_repeat
     peak_mem = torch.cuda.max_memory_allocated() / 1024**2
     return avg_time, peak_mem
 
-def measure_tensor_size(shape, dtype, device):
-
+def measure_kv_storage(shapes, dtype, device):
     torch.cuda.synchronize()
     torch.cuda.empty_cache() 
     mem_before = torch.cuda.memory_allocated()
-    try:
-        t = torch.randn(shape, device=device, dtype=dtype)
-    except torch.cuda.OutOfMemoryError:
-        return None, 0.0
-    mem_after = torch.cuda.memory_allocated()
-    size_mb = (mem_after - mem_before) / 1024**2
-    return t, size_mb
+    tensors = [torch.randn(s, device=device, dtype=dtype) for s in shapes]
+    torch.cuda.synchronize()
+    size_mb = (torch.cuda.memory_allocated() - mem_before) / 1024**2
+    return tensors, size_mb
 
-def run_suite(exp_name, B, N, H_Q, D, csv_data):
+def run_suite(exp_name, B, N, H_Q, D_MLA, csv_data):
+    print(f"\n{'='*90}\n EXPERIMENT: {exp_name} | Batch: {B} | SeqLen: {N}\n{'-'*90}")
+    print(f"{'Method':<18} | {'Latency (ms)':<15} | {'KV Size (MB)':<15} | {'Peak Mem (MB)':<15}")
+    print("-" * 90)
 
-    print(f"Running {exp_name}: B={B}, N={N}...", end="", flush=True)
+    dtype, device, D_H = torch.float16, "cuda", 128
+    sm_scale = 1.0 / math.sqrt(D_H)
+    q = torch.randn((B, N, H_Q, D_H), device=device, dtype=dtype)
 
-    dtype = torch.float16
-    device = "cuda"
-    sm_scale = 1.0 / math.sqrt(D)
-    
-    # common query
-    try:
-        q_ret = measure_tensor_size((B, N, H_Q, D), dtype, device)
-        if q_ret[0] is None:
-             print(f"SKIP: OOM on Query")
-             return
-        q, _ = q_ret
-    except Exception:
-        return
+    ret, kv_sz = measure_kv_storage([(B, N, D_MLA)], dtype, device)
+    t, m = benchmark_kernel(flash_mla_prefill, (q, ret[0], sm_scale))
+    if t:
+        print(f"{'FlashMLA':<18} | {t:>12.2f} ms | {kv_sz:>12.1f} MB | {m:>12.1f} MB")
+        csv_data.append({"Exp": exp_name, "B": B, "N": N, "Method": "FlashMLA", "Time_ms": t, "KV_MB": kv_sz, "Peak_MB": m})
 
-    # Flash MLA
-    print("")
-    try:
-        torch.cuda.empty_cache()
-        ret = measure_tensor_size((B, N, D), dtype, device)
-        if ret[0] is not None:
-            kv_mla, kv_size = ret
-            t, m = benchmark_kernel(flash_mla_prefill, "Flash MLA", (q, kv_mla, sm_scale), n_repeat=10)
-            if t:
-                print(f"[FlashMLA] Latency: {t:.2f}ms | KV Storage: {kv_size:.0f}MB | Peak Mem: {m:.0f}MB")
-                csv_data.append({
-                    "Experiment": exp_name, "Batch": B, "SeqLen": N, "Heads": H_Q, "Dim": D,
-                    "Method": "FlashMLA", "Time_ms": t, "PeakMem_MB": m, "KV_Size_MB": kv_size
-                })
-            del kv_mla
-        else:
-            print(f"[FlashMLA] OOM (Alloc)")
-            csv_data.append({"Experiment": exp_name, "Batch": B, "SeqLen": N, "Method": "FlashMLA", "Time_ms": None})
-    except Exception: pass
+    H_KV_GQA = H_Q // 8
+    ret, kv_sz = measure_kv_storage([(B, N, H_KV_GQA, D_H), (B, N, H_KV_GQA, D_H)], dtype, device)
+    t, m = benchmark_kernel(flash_attn_func, (q, ret[0], ret[1], 0.0, sm_scale, True))
+    if t:
+        print(f"{'Flash-GQA':<18} | {t:>12.2f} ms | {kv_sz:>12.1f} MB | {m:>12.1f} MB")
+        csv_data.append({"Exp": exp_name, "B": B, "N": N, "Method": "Flash-GQA", "Time_ms": t, "KV_MB": kv_sz, "Peak_MB": m})
 
-    # PyTorch GQA (Group=8)
-    group_size = 8
-    H_KV = H_Q // group_size
-    try:
-        torch.cuda.empty_cache()
-        ret = measure_tensor_size((B, N, H_KV, D), dtype, device)
-        if ret[0] is not None:
-            kv_gqa, kv_size = ret
-            t, m = benchmark_kernel(pytorch_sdpa_native, "GQA", (q, kv_gqa, kv_gqa, sm_scale), n_repeat=10)
-            if t:
-                print(f"[GQA] Latency: {t:.2f}ms | KV Storage: {kv_size:.0f}MB | Peak Mem: {m:.0f}MB (Inflated)")
-                csv_data.append({
-                    "Experiment": exp_name, "Batch": B, "SeqLen": N, "Heads": H_Q, "Dim": D,
-                    "Method": "PyTorch_GQA", "Time_ms": t, "PeakMem_MB": m, "KV_Size_MB": kv_size
-                })
-            del kv_gqa
-        else:
-            print(f"[GQA] OOM (Alloc)")
-            csv_data.append({"Experiment": exp_name, "Batch": B, "SeqLen": N, "Method": "PyTorch_GQA", "Time_ms": None})
-    except Exception: pass
+    ret, kv_sz = measure_kv_storage([(B, N, H_Q, D_H), (B, N, H_Q, D_H)], dtype, device)
+    t, m = benchmark_kernel(flash_attn_func, (q, ret[0], ret[1], 0.0, sm_scale, True))
+    if t:
+        print(f"{'Flash-MHA':<18} | {t:>12.2f} ms | {kv_sz:>12.1f} MB | {m:>12.1f} MB")
+        csv_data.append({"Exp": exp_name, "B": B, "N": N, "Method": "Flash-MHA", "Time_ms": t, "KV_MB": kv_sz, "Peak_MB": m})
 
-    # PyTorch MHA
-    try:
-        torch.cuda.empty_cache()
-        ret = measure_tensor_size((B, N, H_Q, D), dtype, device)
-        if ret[0] is not None:
-            kv_mha, kv_size = ret
-            t, m = benchmark_kernel(pytorch_sdpa_native, "MHA", (q, kv_mha, kv_mha, sm_scale), n_repeat=10)
-            if t:
-                print(f"[MHA] Latency: {t:.2f}ms | KV Storage: {kv_size:.0f}MB | Peak Mem: {m:.0f}MB")
-                csv_data.append({
-                    "Experiment": exp_name, "Batch": B, "SeqLen": N, "Heads": H_Q, "Dim": D,
-                    "Method": "PyTorch_MHA", "Time_ms": t, "PeakMem_MB": m, "KV_Size_MB": kv_size
-                })
-            del kv_mha
-        else:
-            print(f"[MHA] OOM (Alloc)")
-            csv_data.append({"Experiment": exp_name, "Batch": B, "SeqLen": N, "Method": "PyTorch_MHA", "Time_ms": None})
-    except Exception: pass
-    
-    del q
-    torch.cuda.empty_cache()
+    def pt_sdpa(q, k, v, s): return F.scaled_dot_product_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), scale=s, is_causal=True)
+    t, m = benchmark_kernel(pt_sdpa, (q, ret[0], ret[1], sm_scale))
+    if t:
+        print(f"{'PyTorch Native':<18} | {t:>12.2f} ms | {kv_sz:>12.1f} MB | {m:>12.1f} MB")
+        csv_data.append({"Exp": exp_name, "B": B, "N": N, "Method": "PyTorch", "Time_ms": t, "KV_MB": kv_sz, "Peak_MB": m})
 
 if __name__ == "__main__":
+    csv_results = []
+    H_Q, D_MLA = 128, 512
 
-    csv_data = []
+    for n in [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]:
+        run_suite("Var_SeqLen", 4, n, H_Q, D_MLA, csv_results)
 
-    H = 128
-    D = 512
+    for b in [1, 2, 4, 8, 16, 32, 64, 128]:
+        run_suite("Var_Batch", b, 4096, H_Q, D_MLA, csv_results)
 
-    print(f"\n[Experiment 1] Variable SeqLen (Batch=4, Heads={H}, Dim={D})")
-    seq_lens = [1024, 2048, 4096, 8192, 16384, 32768, 65536]
-    for n in seq_lens:
-        run_suite("Var_SeqLen", B=4, N=n, H_Q=H, D=D, csv_data=csv_data)
-
-    print(f"\n[Experiment 2] Variable Batch (Seq=4096, Heads={H}, Dim={D})")
-    batches = [1, 2, 4, 8, 16, 32, 64]
-    for b in batches:
-        run_suite("Var_Batch", B=b, N=4096, H_Q=H, D=D, csv_data=csv_data)
-
-    csv_file = "benchmark_prefill.csv"
-    if csv_data:
-        keys = csv_data[0].keys()
-        with open(csv_file, 'w', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=keys)
-            writer.writeheader()
-            writer.writerows(csv_data)
-        print(f"\n[Success] Results saved to {csv_file}")
-    else:
-        print("\n[Warning] No results recorded.")
+    pd.DataFrame(csv_results).to_csv("benchmark_prefill.csv", index=False)

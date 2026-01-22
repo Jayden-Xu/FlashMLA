@@ -1,183 +1,80 @@
-
 import torch
 import torch.nn.functional as F
 import math
-import csv
+import gc
+import pandas as pd
 import torch.multiprocessing as mp
 from flash_mla.ops.interface import flash_mla_decode
 
+try:
+    from flash_attn import flash_attn_with_kvcache
+    HAS_FLASH_ATTN = True
+except ImportError:
+    HAS_FLASH_ATTN = False
 
-def pytorch_sdpa_decode_step(q, k_cache, v_cache, sm_scale):
-    q = q.transpose(1, 2)
-    k = k_cache.transpose(1, 2)
-    v = v_cache.transpose(1, 2)
-    
-    B, H_Q, _, D = q.shape
-    B, H_K, N, _ = k.shape
-
-    if H_Q != H_K:
-        n_group = H_Q // H_K
-        k = k.repeat_interleave(n_group, dim=1)
-        v = v.repeat_interleave(n_group, dim=1)
-    
-    out = F.scaled_dot_product_attention(q, k, v, scale=sm_scale, is_causal=False)
-    return out.transpose(1, 2)
-
-
-def _worker_run_benchmark(method, B, N_CTX, H_Q, D, return_queue):
-
+def _worker_run_benchmark(method, B, N_CTX, H_Q, D_MLA, return_queue):
     try:
         torch.cuda.set_device(0)
-        dtype = torch.float16
-        device = "cuda"
-        sm_scale = 1.0 / math.sqrt(D)
+        dtype, device, D_H = torch.float16, "cuda", 128
+        sm_scale = 1.0 / math.sqrt(D_H)
+        q = torch.randn((B, H_Q, D_H), device=device, dtype=dtype)
+        n_repeat = 100
 
-        q_mla = torch.randn((B, H_Q, D), device=device, dtype=dtype)
-        q_torch = q_mla.unsqueeze(1)
-
-        kv_size_mb = 0
-        latency_us = 0
-        
-        n_warmup = 5
-        n_repeat = 50 
+        def get_kv_size(shapes):
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+            m1 = torch.cuda.memory_allocated()
+            tensors = [torch.randn(s, device=device, dtype=dtype) for s in shapes]
+            torch.cuda.synchronize()
+            return tensors, (torch.cuda.memory_allocated() - m1) / 1024**2
 
         if method == "FlashMLA":
-            kv = torch.randn((B, N_CTX, D), device=device, dtype=dtype)
-            kv_size_mb = (kv.numel() * 2) / 1024**2
-            
-            for _ in range(n_warmup): flash_mla_decode(q_mla, kv, sm_scale)
-            
-            torch.cuda.synchronize()
-            start = torch.cuda.Event(enable_timing=True)
-            end = torch.cuda.Event(enable_timing=True)
-            start.record()
-            for _ in range(n_repeat):
-                flash_mla_decode(q_mla, kv, sm_scale)
-            end.record()
-            torch.cuda.synchronize()
-            latency_us = start.elapsed_time(end) / n_repeat * 1000
+            ret, kv_sz = get_kv_size([(B, N_CTX, D_MLA)])
+            fn = lambda: flash_mla_decode(q, ret[0], sm_scale)
+        elif method == "Flash-GQA":
+            ret, kv_sz = get_kv_size([(B, N_CTX, H_Q//8, D_H), (B, N_CTX, H_Q//8, D_H)])
+            fn = lambda: flash_attn_with_kvcache(q.unsqueeze(1), ret[0], ret[1], softmax_scale=sm_scale, causal=False)
+        elif method == "Flash-MHA":
+            ret, kv_sz = get_kv_size([(B, N_CTX, H_Q, D_H), (B, N_CTX, H_Q, D_H)])
+            fn = lambda: flash_attn_with_kvcache(q.unsqueeze(1), ret[0], ret[1], softmax_scale=sm_scale, causal=False)
+        elif method == "PyTorch":
+            ret, kv_sz = get_kv_size([(B, N_CTX, H_Q, D_H), (B, N_CTX, H_Q, D_H)])
+            def fn():
+                return F.scaled_dot_product_attention(q.unsqueeze(1).transpose(1, 2), ret[0].transpose(1, 2), ret[1].transpose(1, 2), scale=sm_scale)
 
-        elif method == "PyTorch_GQA":
-            group_size = 8
-            H_KV = H_Q // group_size
-            kv = torch.randn((B, N_CTX, H_KV, D), device=device, dtype=dtype)
-            kv_size_mb = (kv.numel() * 2) / 1024**2
-            
-            for _ in range(n_warmup): pytorch_sdpa_decode_step(q_torch, kv, kv, sm_scale)
-            
-            torch.cuda.synchronize()
-            start = torch.cuda.Event(enable_timing=True)
-            end = torch.cuda.Event(enable_timing=True)
-            start.record()
-            for _ in range(n_repeat):
-                pytorch_sdpa_decode_step(q_torch, kv, kv, sm_scale)
-            end.record()
-            torch.cuda.synchronize()
-            latency_us = start.elapsed_time(end) / n_repeat * 1000
+        for _ in range(10): fn()
+        torch.cuda.synchronize()
+        start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        start.record()
+        for _ in range(n_repeat): fn()
+        end.record()
+        torch.cuda.synchronize()
+        return_queue.put({"status": "success", "lat": (start.elapsed_time(end)/n_repeat)*1000, "kv": kv_sz})
+    except Exception as e: return_queue.put({"status": "error", "note": str(e)})
 
-        elif method == "PyTorch_MHA":
-            kv = torch.randn((B, N_CTX, H_Q, D), device=device, dtype=dtype)
-            kv_size_mb = (kv.numel() * 2) / 1024**2
-            
-            for _ in range(n_warmup): pytorch_sdpa_decode_step(q_torch, kv, kv, sm_scale)
-            
-            torch.cuda.synchronize()
-            start = torch.cuda.Event(enable_timing=True)
-            end = torch.cuda.Event(enable_timing=True)
-            start.record()
-            for _ in range(n_repeat):
-                pytorch_sdpa_decode_step(q_torch, kv, kv, sm_scale)
-            end.record()
-            torch.cuda.synchronize()
-            latency_us = start.elapsed_time(end) / n_repeat * 1000
-
-        return_queue.put({"status": "success", "latency": latency_us, "kv_mb": kv_size_mb})
-    
-    except torch.cuda.OutOfMemoryError:
-        return_queue.put({"status": "oom", "note": "Alloc OOM"})
-    except Exception as e:
-        return_queue.put({"status": "error", "note": str(e)})
-
-
-def run_safe_benchmark(method, B, N_CTX, H_Q, D):
-    """
-    Spawns a new process for each benchmark run.
-    """
-    queue = mp.Queue()
-    p = mp.Process(target=_worker_run_benchmark, args=(method, B, N_CTX, H_Q, D, queue))
-    p.start()
-    p.join()
-    
-    result = None
-    if not queue.empty():
-        result = queue.get()
-    
-    if p.exitcode != 0:
-        return {"status": "crash", "note": "Crash/IllegalMem"}
-    
-    if result is None:
-        return {"status": "crash", "note": "No Result"}
-        
-    return result
-
-def run_decode_suite(exp_name, B, N_CTX, H_Q, D, csv_data):
-    print(f"Running {exp_name}: B={B}, Context={N_CTX}...", end="", flush=True)
-    
-    methods = ["FlashMLA", "PyTorch_GQA", "PyTorch_MHA"]
-    
-    for method in methods:
-        res = run_safe_benchmark(method, B, N_CTX, H_Q, D)
-        
-        status = res.get("status", "error")
-        
-        if status == "success":
-            lat = res["latency"]
-            kv = res["kv_mb"]
-            print(f" [{method}: {lat:.1f}us | {kv:.0f}MB]", end="")
-            csv_data.append({
-                "Experiment": exp_name, "Batch": B, "Context": N_CTX, "Heads": H_Q, "Dim": D,
-                "Method": method, "Latency_us": lat, "KV_MB": kv
-            })
-        else:
-            note = res.get("note", "Fail")
-            print(f" [{method}: {note}]", end="")
-            # Record OOM as 0 latency for plotting
-            csv_data.append({
-                "Experiment": exp_name, "Batch": B, "Context": N_CTX, "Heads": H_Q, "Dim": D,
-                "Method": method, "Latency_us": 0, "KV_MB": 0, "Note": note
-            })
-            
-    print("")
+def run_decode_suite(exp_name, B, N_CTX, H_Q, D_MLA, csv_data):
+    print(f"\n{'='*75}\n EXPERIMENT: {exp_name} | Batch: {B} | Context: {N_CTX}\n{'-'*75}")
+    print(f"{'Method':<18} | {'Latency (us)':<15} | {'KV Size (MB)':<15}")
+    print("-" * 75)
+    for m in ["FlashMLA", "Flash-GQA", "Flash-MHA", "PyTorch"]:
+        q = mp.Queue()
+        p = mp.Process(target=_worker_run_benchmark, args=(m, B, N_CTX, H_Q, D_MLA, q))
+        p.start(); p.join()
+        res = q.get() if not q.empty() else {"status": "crash"}
+        if res["status"] == "success":
+            print(f"{m:<18} | {res['lat']:>12.2f} us | {res['kv']:>12.1f} MB")
+            csv_data.append({"Exp": exp_name, "B": B, "N": N_CTX, "Method": m, "Lat_us": res['lat'], "KV_MB": res['kv']})
+        else: print(f"{m:<18} | {'FAIL/OOM':>12} | {'-':>12}")
 
 if __name__ == "__main__":
-
     mp.set_start_method('spawn', force=True)
-    
-    print("=== FlashMLA Decode Benchmark (Multi-Process Safe) ===")
-    csv_data = []
-    H, D = 128, 512
+    csv_results = []
+    H_Q, D_MLA = 128, 512
 
-    print("\n[Exp 1] Context Scaling (Batch=4, Heads=128, Dim=512)")
-    ctx_lens = [1024, 2048, 4096, 8192, 16384, 32768, 65536] 
-    for n in ctx_lens:
-        run_decode_suite("ContextScaling", 4, n, H, D, csv_data)
-
-    print("\n[Exp 2] Batch Scaling (Context=4k, Heads=128, Dim=512)")
-    batches = [1, 2, 4, 8, 16, 32, 64]
-    for b in batches:
-        run_decode_suite("BatchScaling", b, 4096, H, D, csv_data)
-
-    # Save
-    csv_file = "benchmark_decode.csv"
-    if csv_data:
-        all_keys = set().union(*(d.keys() for d in csv_data))
-        preferred_order = ["Experiment", "Batch", "Context", "Heads", "Dim", "Method", "Latency_us", "KV_MB", "Note"]
-        keys = sorted(all_keys, key=lambda k: preferred_order.index(k) if k in preferred_order else 999)
+    for n in [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]:
+        run_decode_suite("ContextScaling", 4, n, H_Q, D_MLA, csv_results)
         
-        with open(csv_file, 'w', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=keys)
-            writer.writeheader()
-            writer.writerows(csv_data)
-        print(f"\n[Success] Results saved to {csv_file}")
-    else:
-        print("\n[Warning] No results.")
+    for b in [1, 2, 4, 8, 16, 32, 64, 128]:
+        run_decode_suite("BatchScaling", b, 4096, H_Q, D_MLA, csv_results)
+
+    pd.DataFrame(csv_results).to_csv("benchmark_decode.csv", index=False)
