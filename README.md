@@ -5,8 +5,12 @@ FlashMLA is an fast and memory-efficient collection of MLA (Multi-Head Latent At
 ---
 ## Performance Benchmarks
 
-Benchmarks were conducted on NVIDIA A100-SXM4-80GB.
-Configuration: Heads=128, Dim=512 (DeepSeek V2/V3 Standard).
+Benchmarks are conducted on NVIDIA A100 (80GB). We compare FlashMLA against state-of-the-art implementations of standard attention mechanisms.
+
+Key Architectural Parameters:
+- FlashMLA: $d_c = 512$ (Compressed KV Latent)
+- MHA/GQA Baselines: $d_h = 128$ (Standard Head Dimension)
+- $n_{heads} = 128$
 
 ### Prefill Phase
 
