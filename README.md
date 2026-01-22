@@ -2,7 +2,7 @@
 
 FlashMLA delivers **fast and memory-efficient** Multi-Head Latent Attention (MLA) kernels 
 in OpenAI Triton, enabling **8-64× smaller KV cache** compared to standard attention while 
-maintaining competitive throughput. Purpose-built for long-context scenarios where memory 
+maintaining competitive throughput. Purpose-built for scenarios where memory 
 is the bottleneck.
 
 ---
