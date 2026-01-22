@@ -5,20 +5,20 @@ FlashMLA is an fast and memory-efficient collection of MLA (Multi-Head Latent At
 ---
 ## Performance Benchmarks
 
-Benchmarks are conducted on NVIDIA A100 (80GB). We compare FlashMLA against the industry-standard FlashAttention-2 (FA2) implementations for Multi-Head Attention (MHA) and Grouped-Query Attention (GQA).
+Benchmarks are conducted on NVIDIA A100 (80GB). We compare FlashMLA against the industry-standard FlashAttention-2 (FA2) implementations for Multi-Head Attention (MHA) and Grouped-Query Attention (GQA) as well as native PyTorch SDPA.
 > All benchmarks measure pure attention kernel performance, to enable fair comparison across different implementations.
 
 Key Architectural Parameters:
 - FlashMLA: $d_c = 512$ (Compressed KV Latent)
 - MHA/GQA Baselines: $d_h = 128$ (Standard Head Dimension)
-- Attention Heads: $n_{q\_heads} = 128$
-- GQA Config: Group Size = 8 ($n_{kv\_heads} = 16$)
+- Attention Heads: $n_{q\_{heads}} = 128$
+- GQA Config: Group Size = 8 ($n_{kv\_{heads}} = 16$)
 
 ### Prefill Phase
 
 #### Sequence Length Scaling (Batch = 4)
 
-In the prefill stage, FlashMLA focuses on maximizing KV cache capacity. While PyTorch SDPA kernel and FA2 kernels are highly optimized for compute, FlashMLA enables processing sequences that would otherwise exceed hardware memory limits.
+In the prefill stage, FlashMLA focuses on maximizing KV cache capacity. While PyTorch SDPA and FA2 are highly optimized for dense computation, FlashMLA enables processing sequences that would otherwise exceed hardware memory limits.
 
 ![](./benchmarks/results/prefill_seqlen.png)
 
