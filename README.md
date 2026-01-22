@@ -9,10 +9,10 @@ Benchmarks are conducted on NVIDIA A100 (80GB). We compare FlashMLA against the 
 > All benchmarks measure pure attention kernel performance, to enable fair comparison across different implementations.
 
 Key Architectural Parameters:
-- FlashMLA: $d_c = 512$ (Compressed KV Latent)
-- MHA/GQA Baselines: $d_h = 128$ (Standard Head Dimension)
-- Attention Heads: $n_{q\_heads} = 128$
-- GQA Config: Group Size = 8 ($n_{kv\_heads} = 16$)
+- FlashMLA: `d_c = 512` (Compressed KV Latent)
+- MHA/GQA Baselines: `d_h = 128` (Standard Head Dimension)
+- Attention Heads: `n_q_heads = 128`
+- GQA Config: Group Size = 8 (`n_kv_heads = 16`)
 
 ### Prefill Phase
 
