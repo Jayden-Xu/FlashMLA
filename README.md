@@ -11,8 +11,8 @@ Benchmarks are conducted on NVIDIA A100 (80GB). We compare FlashMLA against the 
 Key Architectural Parameters:
 - FlashMLA: $d_c = 512$ (Compressed KV Latent)
 - MHA/GQA Baselines: $d_h = 128$ (Standard Head Dimension)
-- Attention Heads: $n_{q\_{heads}} = 128$
-- GQA Config: Group Size = 8 ($n_{kv\_{heads}} = 16$)
+- Attention Heads: $n_{q\_heads} = 128$
+- GQA Config: Group Size = 8 ($n_{kv\_heads} = 16$)
 
 ### Prefill Phase
 
