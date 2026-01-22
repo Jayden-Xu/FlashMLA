@@ -13,7 +13,7 @@ FlashMLA is under active development. Our goal is to provide a production-ready 
 
 - [ ] Native RoPE support
 - [ ] Paged Attention support
-- [ ] Fused kernels & core kernel tuning
+- [ ] Fused kernels & Core kernels tuning
 - [ ] FP8 precision support
 
 ---
