@@ -6,6 +6,7 @@ FlashMLA is an fast and memory-efficient collection of MLA (Multi-Head Latent At
 ## Performance Benchmarks
 
 Benchmarks are conducted on NVIDIA A100 (80GB). We compare FlashMLA against the industry-standard FlashAttention-2 (FA2) implementations for Multi-Head Attention (MHA) and Grouped-Query Attention (GQA).
+> All benchmarks measure pure attention kernel performance, to enable fair comparison across different implementations.
 
 Key Architectural Parameters:
 - FlashMLA: $d_c = 512$ (Compressed KV Latent)
