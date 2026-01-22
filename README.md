@@ -1,8 +1,23 @@
 # FlashMLA: High-Performance Multi-Head Latent Attention Kernels
 
-FlashMLA is an fast and memory-efficient collection of MLA (Multi-Head Latent Attention) kernels implemented in OpenAI Triton. Specifically optimized for the MLA architecture, it bridges the gap between massive context windows and hardware efficiency.
+FlashMLA delivers **fast and memory-efficient** Multi-Head Latent Attention (MLA) kernels 
+in OpenAI Triton, enabling **8-64× smaller KV cache** compared to standard attention while 
+maintaining competitive throughput. Purpose-built for long-context scenarios where memory 
+is the bottleneck.
 
 ---
+
+## Roadmap
+
+FlashMLA is under active development. Our goal is to provide a production-ready Triton implementation for MLA-based models.
+
+- [ ] Native RoPE support
+- [ ] Paged Attention support
+- [ ] Fused kernels & core kernel tuning
+- [ ] FP8 precision support
+
+---
+
 ## Performance Benchmarks
 
 Benchmarks are conducted on **NVIDIA A100 (80GB)**. We compare **FlashMLA** against industry-standard **FlashAttention-2 (FA2)** implementations and the **PyTorch SDPA** baseline.
