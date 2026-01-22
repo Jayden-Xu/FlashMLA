@@ -9,8 +9,11 @@ is the bottleneck.
 
 ## Key Features
 
-- **Core Prefill Kernel**: FlashAttention-2 + MLA for long-context and large-batch prompt processing
-- **Core Decode Kernel**: FlashDecoding + MLA for memory-efficient autoregressive generation
+**Core Prefill Kernel**: FlashAttention-2 + MLA
+> Long-context and large-batch prompt processing
+
+**Core Decode Kernel**: FlashDecoding + MLA
+> Memory-efficient autoregressive generation
 
 ---
 
@@ -21,7 +24,7 @@ FlashMLA is under active development. Our goal is to provide a production-ready 
 - [ ] Native RoPE support
 - [ ] Paged Attention support
 - [ ] Kernel tuning
-- [ ] FP8 precision support
+- [ ] FP8 precision support (H100+ only)
 
 ---
 
