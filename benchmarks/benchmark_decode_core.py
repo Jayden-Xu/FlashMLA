@@ -4,7 +4,7 @@ import math
 import gc
 import pandas as pd
 import torch.multiprocessing as mp
-from flash_mla.ops.interface import flash_mla_decode_core
+from FlashMLA.flash_mla.ops.interface_core import flash_mla_decode_core
 
 try:
     from flash_attn import flash_attn_with_kvcache

@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import math
 import gc
 import pandas as pd
-from flash_mla.ops.interface import flash_mla_prefill_core
+from FlashMLA.flash_mla.ops.interface_core import flash_mla_prefill_core
 
 try:
     from flash_attn import flash_attn_func
