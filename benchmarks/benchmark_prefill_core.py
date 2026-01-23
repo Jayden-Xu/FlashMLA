@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import math
 import gc
 import pandas as pd
-from flash_mla.ops.interface import flash_mla_prefill
+from flash_mla.ops.interface import flash_mla_prefill_core
 
 try:
     from flash_attn import flash_attn_func
@@ -49,7 +49,7 @@ def run_suite(exp_name, B, N, H_Q, D_MLA, csv_data):
     q = torch.randn((B, N, H_Q, D_H), device=device, dtype=dtype)
 
     ret, kv_sz = measure_kv_storage([(B, N, D_MLA)], dtype, device)
-    t, m = benchmark_kernel(flash_mla_prefill, (q, ret[0], sm_scale))
+    t, m = benchmark_kernel(flash_mla_prefill_core, (q, ret[0], sm_scale))
     if t:
         print(f"{'FlashMLA':<18} | {t:>12.2f} ms | {kv_sz:>12.1f} MB | {m:>12.1f} MB")
         csv_data.append({"Exp": exp_name, "B": B, "N": N, "Method": "FlashMLA", "Time_ms": t, "KV_MB": kv_sz, "Peak_MB": m})

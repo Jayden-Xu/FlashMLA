@@ -4,7 +4,7 @@ import math
 import gc
 import pandas as pd
 import torch.multiprocessing as mp
-from flash_mla.ops.interface import flash_mla_decode
+from flash_mla.ops.interface import flash_mla_decode_core
 
 try:
     from flash_attn import flash_attn_with_kvcache
@@ -30,7 +30,7 @@ def _worker_run_benchmark(method, B, N_CTX, H_Q, D_MLA, return_queue):
 
         if method == "FlashMLA":
             ret, kv_sz = get_kv_size([(B, N_CTX, D_MLA)])
-            fn = lambda: flash_mla_decode(q, ret[0], sm_scale)
+            fn = lambda: flash_mla_decode_core(q, ret[0], sm_scale)
         elif method == "Flash-GQA":
             ret, kv_sz = get_kv_size([(B, N_CTX, H_Q//8, D_H), (B, N_CTX, H_Q//8, D_H)])
             fn = lambda: flash_attn_with_kvcache(q.unsqueeze(1), ret[0], ret[1], softmax_scale=sm_scale, causal=False)

@@ -8,7 +8,7 @@ def cdiv(x, y):
     return (x + y - 1) // y
 
 
-def flash_mla_prefill(q_abs, kv_latent, sm_scale):
+def flash_mla_prefill_core(q_abs, kv_latent, sm_scale):
     """
     Args:
         q_abs: [Batch, N_CTX, Num_Heads, D_LATENT] (Absorbed Q)
@@ -33,7 +33,7 @@ def flash_mla_prefill(q_abs, kv_latent, sm_scale):
     return output
 
 
-def flash_mla_decode(q_abs, kv_cache, sm_scale):
+def flash_mla_decode_core(q_abs, kv_cache, sm_scale):
     """
     Args:
         q_abs: [Batch, Heads, D_LATENT] # Absorbed Query
