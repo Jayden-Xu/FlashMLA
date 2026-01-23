@@ -103,4 +103,4 @@ def flash_mla_prefill_kernel(
     o_ptr_base = Output_ptr + pid_b * stride_o_b + pid_h * stride_o_h
     o_ptrs = o_ptr_base + offs_m[:, None] * stride_o_n + offs_d[None, :] * stride_o_d
     
-    tl.store(o_ptrs, acc.to(Output_ptr.dtype.element_ty), mask=offs_m[:, None] < N_CTX)
+    tl.store(o_ptrs, acc, mask=offs_m[:, None] < N_CTX)
