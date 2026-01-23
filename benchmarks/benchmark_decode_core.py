@@ -1,16 +1,12 @@
+
 import torch
 import torch.nn.functional as F
 import math
-import gc
 import pandas as pd
 import torch.multiprocessing as mp
+from flash_attn import flash_attn_with_kvcache
 from FlashMLA.flash_mla.ops.interface_core import flash_mla_decode_core
 
-try:
-    from flash_attn import flash_attn_with_kvcache
-    HAS_FLASH_ATTN = True
-except ImportError:
-    HAS_FLASH_ATTN = False
 
 def _worker_run_benchmark(method, B, N_CTX, H_Q, D_MLA, return_queue):
     try:
