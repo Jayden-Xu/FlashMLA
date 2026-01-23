@@ -6,10 +6,6 @@ import triton.language as tl
 
 
 autotune_configs = [
-    # small D (128)
-    triton.Config({'BLOCK_M': 128, 'BLOCK_N': 64, 'num_stages': 4, 'num_warps': 4}, num_stages=4, num_warps=4),
-    triton.Config({'BLOCK_M': 64, 'BLOCK_N': 64, 'num_stages': 4, 'num_warps': 4}, num_stages=4, num_warps=4),
-    # large D (512)
     triton.Config({'BLOCK_M': 64, 'BLOCK_N': 32, 'num_stages': 2, 'num_warps': 4}, num_stages=2, num_warps=4),
     triton.Config({'BLOCK_M': 32, 'BLOCK_N': 32, 'num_stages': 2, 'num_warps': 4}, num_stages=2, num_warps=4),
 ]
