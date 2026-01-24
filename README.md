@@ -9,11 +9,11 @@ is the bottleneck.
 
 ## Key Features
 
-**Core Prefill Kernel**: FlashAttention-2 + MLA
-> Long-context and large-batch prompt processing
+**Fused Prefill Kernel**: FlashAttention-2 + MLA + RoPE
+> High-Throughput Prompt Processing
 
-**Core Decode Kernel**: FlashDecoding + MLA
-> Memory-efficient autoregressive generation
+**Core Decode Kernel**: FlashDecoding + MLA + RoPE
+> Low-Latency Token Generation
 
 ---
 
@@ -21,16 +21,19 @@ is the bottleneck.
 
 FlashMLA is under active development. Our goal is to provide a production-ready Triton implementation for MLA-based models.
 
-- [ ] Native RoPE support
+- [x] Decoupled RoPE Fusion
 - [ ] Paged Attention support
-- [ ] Kernel tuning
-- [ ] FP8 precision support (H100+ only)
+- [ ] End-to-End Integration
+- [ ] Kernel Tuning & Benchmarking
+- [ ] FP8 Precision support (H100+ only)
 
 ---
 
 ## Performance Benchmarks
 
-Benchmarks are conducted on **NVIDIA A100 (80GB)**. We compare **FlashMLA** against industry-standard **FlashAttention-2 (FA2)** implementations and the **PyTorch SDPA** baseline.
+### Core Kernels
+
+Benchmarks are conducted on **NVIDIA A100 (80GB)**. We compare **FlashMLA** core kernels against industry-standard **FlashAttention-2 (FA2)** implementations and the **PyTorch SDPA** baseline.
 
 Key Architectural Parameters:
 - FlashMLA: `d_c = 512` (Compressed KV Latent)
