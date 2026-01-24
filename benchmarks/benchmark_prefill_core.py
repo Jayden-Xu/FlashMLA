@@ -5,7 +5,7 @@ import math
 import gc
 import pandas as pd
 from flash_attn import flash_attn_func
-from FlashMLA.flash_mla.ops.interface_core import flash_mla_prefill_core
+from flash_mla.ops.interface_core import flash_mla_prefill_core
 
 
 def benchmark_kernel(func, args, n_repeat=10):
