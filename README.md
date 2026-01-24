@@ -12,7 +12,7 @@ is the bottleneck.
 **Fused Prefill Kernel**: FlashAttention-2 + MLA + RoPE
 > High-Throughput Prompt Processing
 
-**Core Decode Kernel**: FlashDecoding + MLA + RoPE
+**Fused Decode Kernel**: FlashDecoding + MLA + RoPE
 > Low-Latency Token Generation
 
 ---
