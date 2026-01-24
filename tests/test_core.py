@@ -1,7 +1,7 @@
 # test FlashMLA against PyTorch reference implementation
 
 import torch
-from FlashMLA.flash_mla.ops.interface_core import flash_mla_prefill, flash_mla_decode
+from flash_mla.ops.interface_core import flash_mla_prefill_core, flash_mla_decode_core
 
 
 def manual_mla_reference(q_abs, kv_latent, sm_scale, is_causal=True):
@@ -58,11 +58,11 @@ def test_flash_mla_prefill():
     q_abs = torch.randn((B, N_CTX, H, D_LATENT), dtype=dtype, device=device)
     kv_latent = torch.randn((B, N_CTX, D_LATENT), dtype=dtype, device=device)
 
-    tri_out = flash_mla_prefill(q_abs, kv_latent, sm_scale)
+    tri_out = flash_mla_prefill_core(q_abs, kv_latent, sm_scale)
     ref_out = manual_mla_reference(q_abs, kv_latent, sm_scale, is_causal=True)
 
     assert torch.allclose(tri_out, ref_out, atol=1e-2, rtol=1e-2)
-    print("Prefill Test Passed! Output Max Diff:", (tri_out - ref_out).abs().max().item())
+    print("Prefill Test Passed!")
 
 
 def test_flash_mla_decode():
@@ -80,11 +80,11 @@ def test_flash_mla_decode():
     q_abs = torch.randn((B, H, D_LATENT), dtype=dtype, device=device)
     kv_cache = torch.randn((B, N_CTX, D_LATENT), dtype=dtype, device=device)
 
-    tri_out = flash_mla_decode(q_abs, kv_cache, sm_scale)
+    tri_out = flash_mla_decode_core(q_abs, kv_cache, sm_scale)
     ref_out = manual_mla_reference(q_abs, kv_cache, sm_scale, is_causal=False)
 
     assert torch.allclose(tri_out, ref_out, atol=1e-2, rtol=1e-2)
-    print("Decode Test Passed! Output Max Diff:", (tri_out - ref_out).abs().max().item())
+    print("Decode Test Passed!")
 
 if __name__ == "__main__":
     if torch.cuda.is_available():
