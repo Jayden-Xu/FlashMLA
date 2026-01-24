@@ -1,7 +1,7 @@
 
 import torch
-from FlashMLA.flash_mla.kernels.prefill_core import flash_mla_prefill_kernel
-from FlashMLA.flash_mla.kernels.decode_core import flash_mla_decode_stage_1_kernel, flash_mla_decode_stage_2_kernel
+from flash_mla.kernels.prefill_core import flash_mla_prefill_kernel
+from flash_mla.kernels.decode_core import flash_mla_decode_stage_1_kernel, flash_mla_decode_stage_2_kernel
 
 
 def cdiv(x, y): 
@@ -26,7 +26,8 @@ def flash_mla_prefill_core(q_abs, kv_latent, sm_scale):
         *q_abs.stride(),
         *kv_latent.stride(), # [stride_b, stride_n, stride_d]
         *output.stride(),
-        N_CTX=N_CTX, D_LATENT=D_LATENT,
+        N_CTX, 
+        D_LATENT=D_LATENT,
         sm_scale=sm_scale,
     )
     
@@ -64,8 +65,10 @@ def flash_mla_decode_core(q_abs, kv_cache, sm_scale):
         *kv_cache.stride(),
         *mid_o.stride(),
         *mid_lse.stride(),
-        N_CTX=N_CTX, D_LATENT=D_LATENT, 
-        SPLIT_N_SIZE=SPLIT_N_SIZE, sm_scale=sm_scale
+        N_CTX, 
+        SPLIT_N_SIZE,
+        D_LATENT=D_LATENT, 
+        sm_scale=sm_scale
     )
 
     # stage 2
