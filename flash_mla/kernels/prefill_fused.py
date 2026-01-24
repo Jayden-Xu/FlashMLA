@@ -40,7 +40,7 @@ def flash_mla_prefill_kernel(
     stride_o_b, stride_o_n, stride_o_h, stride_o_d,
 
     # dimensions
-    N_CTX: tl.constexpr,
+    N_CTX,
     D_LATENT: tl.constexpr, # latent dim
     D_ROPE: tl.constexpr,   # rope dim
     BLOCK_M: tl.constexpr,
@@ -78,6 +78,7 @@ def flash_mla_prefill_kernel(
     cos = tl.load(cos_ptrs, mask = offs_m[:, None] < N_CTX, other = 1.0)
     sin = tl.load(sin_ptrs, mask = offs_m[:, None] < N_CTX, other = 0.0)
 
+    # interleaved rotation
     is_even = (offs_d_rope % 2) == 0
     # [x0, x1, x2, x3, ...] -> [x1, x0, x3, x2, ...]
     offs_d_rope_swap = offs_d_rope + tl.where(is_even, 1, -1)

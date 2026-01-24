@@ -26,7 +26,7 @@ def flash_mla_prefill_kernel(
     stride_o_b, stride_o_n, stride_o_h, stride_o_d,
 
     # dimensions
-    N_CTX: tl.constexpr,
+    N_CTX,
     D_LATENT: tl.constexpr,
     BLOCK_M: tl.constexpr,
     BLOCK_N: tl.constexpr,

@@ -31,10 +31,10 @@ def flash_mla_decode_stage_1_kernel(
     stride_mid_lse_b, stride_mid_lse_h, stride_mid_lse_s,
     
     # dimensions
-    N_CTX: tl.constexpr,
+    N_CTX,
+    SPLIT_N_SIZE,
     D_LATENT: tl.constexpr,
     BLOCK_N: tl.constexpr,
-    SPLIT_N_SIZE: tl.constexpr,
     sm_scale: tl.constexpr
 ):
     
