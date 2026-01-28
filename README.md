@@ -22,8 +22,8 @@ is the bottleneck.
 FlashMLA is under active development. Our goal is to provide a production-ready Triton implementation for MLA-based models.
 
 - [x] Decoupled RoPE Fusion
-- [ ] Paged Attention support
-- [ ] End-to-End Integration
+- [x] Paged Attention support
+- [x] vLLM Integration (See [vLLM_FlashMLA](https://github.com/Jayden-Xu/vllm_FlashMLA))
 - [ ] Kernel Tuning & Benchmarking
 - [ ] FP8 Precision support (H100+ only)
 
@@ -31,9 +31,15 @@ FlashMLA is under active development. Our goal is to provide a production-ready 
 
 ## Performance Benchmarks
 
+### System-Level Performance
+
+We benchmarked the **FlashMLA** backend against the **official vLLM Triton-MLA baseline** on **NVIDIA A100-80GB** using DeepSeek-V2-Lite.
+
+![](./benchmarks/results/vllm_flashmla_benchmark.png)
+
 ### Core Kernels
 
-Benchmarks are conducted on **NVIDIA A100 (80GB)**. We compare **FlashMLA** core kernels against industry-standard **FlashAttention-2 (FA2)** implementations and the **PyTorch SDPA** baseline.
+We compare **FlashMLA** core kernels against industry-standard **FlashAttention-2 (FA2)** implementations and the **PyTorch SDPA** baseline on **NVIDIA A100 (80GB)**. 
 
 Key Architectural Parameters:
 - FlashMLA: `d_c = 512` (Compressed KV Latent)
