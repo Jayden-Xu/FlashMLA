@@ -25,7 +25,7 @@ FlashMLA is under active development. Our goal is to provide a production-ready 
 - [x] Paged Attention support
 - [x] vLLM Integration (See [vLLM_FlashMLA](https://github.com/Jayden-Xu/vllm_FlashMLA))
 - [ ] Kernel Tuning & Benchmarking
-- [ ] FP8 Precision support (H100+ only)
+- [ ] FP8 Precision support
 
 ---
 
