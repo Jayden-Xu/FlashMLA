@@ -1,5 +1,7 @@
 # FlashMLA: High-Performance Multi-Head Latent Attention Kernels
 
+> This is the kernel repository for [vLLM_FlashMLA](https://github.com/Jayden-Xu/vllm_FlashMLA).
+
 FlashMLA delivers **fast and memory-efficient** Multi-Head Latent Attention (MLA) kernels 
 in OpenAI Triton, enabling **8-64× smaller KV cache** compared to standard attention while 
 maintaining competitive throughput. Purpose-built for scenarios where memory 
@@ -9,11 +11,15 @@ is the bottleneck.
 
 ## Key Features
 
-**Fused Prefill Kernel**: FlashAttention-2 + MLA + RoPE
-> High-Throughput Prompt Processing
+**Core Kernels**: 
+- Prefill Kernel: FlashAttention-2 + MLA
+- Decode Kernel: FlashDecoding + MLA
 
-**Fused Decode Kernel**: FlashDecoding + MLA + RoPE
-> Low-Latency Token Generation
+**Fused Kernels**:
+- Core Kernels + Decoupled RoPE
+
+**Integrated Kernels**:
+- Decode Kernel: FlashDecoding + MLA + Decoupled RoPE + PagedAttention
 
 ---
 
@@ -25,11 +31,13 @@ FlashMLA is under active development. Our goal is to provide a production-ready 
 - [x] Paged Attention support
 - [x] vLLM Integration (See [vLLM_FlashMLA](https://github.com/Jayden-Xu/vllm_FlashMLA))
 - [ ] Kernel Tuning & Benchmarking
-- [ ] FP8 Precision support
+- [ ] Quantization
 
 ---
 
 ## Performance Benchmarks
+
+New benchmark results coming soon...
 
 ### System-Level Performance
 
