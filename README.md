@@ -48,6 +48,7 @@ We benchmarked the **FlashMLA** backend against the **official vLLM Triton-MLA b
 ### Core Kernels
 
 We compare **FlashMLA** core kernels against industry-standard **FlashAttention-2 (FA2)** implementations and the **PyTorch SDPA** baseline on **NVIDIA A100 (80GB)**. 
+> Core Kernels are not optimized intentionally, to demonstrate the architectural advantage of MLA.
 
 Key Architectural Parameters:
 - FlashMLA: `d_c = 512` (Compressed KV Latent)
