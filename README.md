@@ -36,6 +36,8 @@ Comparison against the official vLLM Triton-MLA baseline.
 
 ![FlashMLA Decode Latency](./assets/benchmark_latency.png)
 
+![FlashMLA Decode Precision](./assets/benchmark_precision.png)
+
 ### Core Kernel Efficiency
 
 We focus on the Memory Footprint for KV Cache during the decode phase to demonstrate the architectural advantage of MLA.
