@@ -30,8 +30,6 @@ Benchmarks were conducted on **NVIDIA A100-80GB** using **DeepSeek-V2-Lite-Chat*
 
 ### System-Level Performance
 
-Comparison against the official vLLM Triton-MLA baseline.
-
 ![FlashMLA Decode Throughput](./assets/benchmark_throughput.png)
 
 ![FlashMLA Decode Latency](./assets/benchmark_latency.png)
