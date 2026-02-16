@@ -33,20 +33,4 @@ Benchmarks were conducted on **NVIDIA A100-80GB** using **DeepSeek-V2-Lite-Chat*
 ![FlashMLA Decode Throughput Short](./assets/flashmla_benchmark_1024_2048.png)
 ![FlashMLA Decode Throughput Long](./assets/flashmla_benchmark_4096_8192.png)
 
-
-
-### Core Kernel Efficiency
-
-We focus on the Memory Footprint for KV Cache during the decode phase to demonstrate the architectural advantage of MLA.
-
-Key Architectural Parameters:
-- FlashMLA: `d_c = 512` (Compressed KV Latent)
-- MHA/GQA Baselines: `d_h = 128` (Standard Head Dimension)
-- Attention Heads: `n_q_heads = 128`
-- GQA Config: Group Size = 8 (`n_kv_heads = 16`)
-
-![FlashMLA Decode Memory Footprint - Batch Scaling](./assets/kv_cache_batch.png)
-
-![FlashMLA Decode Memory Footprint - Context Scaling](./assets/kv_cache_context.png)
-
 ---
