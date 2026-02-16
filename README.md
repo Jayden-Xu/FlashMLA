@@ -30,11 +30,10 @@ Benchmarks were conducted on **NVIDIA A100-80GB** using **DeepSeek-V2-Lite-Chat*
 
 ### System-Level Performance
 
-![FlashMLA Decode Throughput](./assets/benchmark_throughput.png)
+![FlashMLA Decode Throughput Short](./assets/flashmla_benchmark_1024_2048.png)
+![FlashMLA Decode Throughput Long](./assets/flashmla_benchmark_4096_8192.png)
 
-![FlashMLA Decode Latency](./assets/benchmark_latency.png)
 
-![FlashMLA Decode Precision](./assets/benchmark_precision.png)
 
 ### Core Kernel Efficiency
 
