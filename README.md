@@ -14,13 +14,11 @@ By leveraging MLA's compressed latent vectors, FlashMLA enables 8-64× smaller K
 ---
 ## Key Features
 
-**Extreme Speed**: Highly optimized Triton kernels for MLA decoding.
+Extreme Speed & Memory Efficiency
 
-**Memory Efficiency**: Native support for Compressed KV Latent vectors, drastically reducing memory usage compared to GQA/MHA.
+Minimum Overhead with CUDA Graph
 
-**Zero-Overhead**: Fully compatible with CUDA Graph capture, ensuring minimal CPU overhead during execution.
-
-**Production Ready**: Implements dynamic Split-K scheduling to automatically balance latency and throughput based on workload.
+Production Ready with dynamic Split-K scheduling
 
 ---
 
@@ -28,9 +26,11 @@ By leveraging MLA's compressed latent vectors, FlashMLA enables 8-64× smaller K
 
 Benchmarks were conducted on **NVIDIA A100-80GB** using **DeepSeek-V2-Lite-Chat** with **CUDA Graph enabled**.
 
-### System-Level Performance
+### Decoding Performance
 
-![FlashMLA Decode Throughput Short](./assets/flashmla_benchmark_1024_2048.png)
-![FlashMLA Decode Throughput Long](./assets/flashmla_benchmark_4096_8192.png)
+![](./assets/flashmla_benchmark_seqlen_1024.png)
+![](./assets/flashmla_benchmark_seqlen_2048.png)
+![](./assets/flashmla_benchmark_seqlen_4096.png)
+![](./assets/flashmla_benchmark_seqlen_8192.png)
 
 ---
