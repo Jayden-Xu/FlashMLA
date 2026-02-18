@@ -69,31 +69,39 @@ def _flash_mla_stage1(
         k_nope = tl.load(k_base + d_nope[None, :] * stride_kd, mask=k_mask[:, None], other=0.0)
         k_pe = tl.load(k_base + d_pe[None, :] * stride_kd, mask=k_mask[:, None], other=0.0)
         
+        # load V nope
+        v_base = V_Cache + page_ids[:, None] * stride_vb + page_offs[:, None] * stride_vo
+        v = tl.load(v_base + d_nope[None, :] * stride_vd, mask=k_mask[:, None], other=0.0)
+        
         if USE_INT8:
-            k_nope = (k_nope.to(tl.float32) * k_scale).to(q_nope.dtype)
-            k_pe = (k_pe.to(tl.float32) * k_scale).to(q_pe.dtype)
+            k_nope = k_nope.to(q_nope.dtype)
+            k_pe = k_pe.to(q_pe.dtype)
         
         qk = tl.dot(q_nope, tl.trans(k_nope)) + tl.dot(q_pe, tl.trans(k_pe))
-        qk = qk * sm_scale
+        
+        if USE_INT8:
+            qk = qk * (sm_scale * k_scale)
+        else:
+            qk = qk * sm_scale
+
         qk = tl.where(k_mask[None, :], qk, float("-inf"))
         
         # online softmax
         m_new = tl.maximum(m, tl.max(qk, 1))
         alpha = tl.exp(m - m_new)
         p = tl.exp(qk - m_new[:, None])
-        
-        # load V nope
-        v_base = V_Cache + page_ids[:, None] * stride_vb + page_offs[:, None] * stride_vo
-        v = tl.load(v_base + d_nope[None, :] * stride_vd, mask=k_mask[:, None], other=0.0)
 
         if USE_INT8:
-            v = (v.to(tl.float32) * v_scale).to(q_nope.dtype)
+            v = v.to(q_nope.dtype)
         
         acc = acc * alpha[:, None] + tl.dot(p.to(v.dtype), v)
         l = l * alpha + tl.sum(p, 1)
         m = m_new
     
     acc = acc / l[:, None]
+
+    if USE_INT8:
+        acc = acc * v_scale
     
     out_base = Att_Out + pid_b * stride_ab + h_offs[:, None] * stride_ah + pid_split * stride_as
     tl.store(out_base + d_nope[None, :] * stride_ad, acc)
@@ -123,9 +131,9 @@ def _flash_mla_stage2(
     m = float("-inf")
     l = 0.0
     acc = tl.zeros([D_NOPE], dtype=tl.float32)
-    
+    split_size = tl.cdiv(seq_len, NUM_SPLITS)
+
     for split in range(NUM_SPLITS):
-        split_size = tl.cdiv(seq_len, NUM_SPLITS)
         split_start = split * split_size
         split_end = tl.minimum(split_start + split_size, seq_len)
         
